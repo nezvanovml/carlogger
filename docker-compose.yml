@@ -1,0 +1,70 @@
+version: '3.6'
+networks:
+  web:
+    external: true
+  internal:
+    external: false
+
+services:
+  carlogger_back:
+    container_name: carlogger_back
+    image: carlogger_back
+    restart: unless-stopped
+    environment:
+      FLASK_APP: app.py
+      SECRET_KEY:
+      POSTGRES_PASSWORD:
+      EMAIL_PASSWORD:
+      SECURITY_PASSWORD_SALT:
+    depends_on:
+      - carlogger_postgres_db
+    networks:
+      - web
+      - internal
+
+  carlogger_front:
+    container_name: carlogger_front
+    image: carlogger_front
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.moneylogger.entrypoints=https"
+      - "traefik.docker.network=web"
+      - "traefik.port=80"
+      - "traefik.http.routers.moneylogger.tls=true"
+      - "traefik.http.routers.moneylogger.tls.certresolver=letsEncrypt"
+      - "traefik.http.routers.moneylogger.rule=Host(`car.nezvanov.ru`)"
+    ports:
+      - 80:80
+    networks:
+      - web
+      - internal
+
+  carlogger_postgres_db:
+    container_name: carlogger_postgres_db
+    image: postgres:14.5
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD:
+      POSTGRES_USER: carlogger
+      POSTGRES_DB: carlogger
+    volumes:
+      - volume_carlogger_postgres_db:/var/lib/postgresql/data
+    networks:
+      - internal
+    ports:
+      - 5432:5432
+
+  adminer_carlogger_postgres_db:
+    container_name: adminer_carlogger_postgres_db
+    image: adminer:4.8.1
+    restart: unless-stopped
+    ports:
+      - 82:8080
+    environment:
+      ADMINER_DEFAULT_SERVER: carlogger_postgres_db
+    networks:
+      - internal
+
+volumes:
+  volume_carlogger_postgres_db:

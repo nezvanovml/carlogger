@@ -1,0 +1,11 @@
+postgres:
+  host: carlogger_postgres_db
+  port: 5432
+  user: carlogger
+  database: carlogger
+email:
+  host: smtp.mail.ru
+  port: 465
+  use_ssl: True
+  login: carlogger@nezvanov.ru
+  sender_name: CarLogger

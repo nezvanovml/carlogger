@@ -1,0 +1,14 @@
+wheel==0.37.1
+configparser==5.0.2
+Flask==2.0.2
+Flask-Migrate==3.1.0
+Flask-SQLAlchemy==2.5.1
+psycopg2-binary==2.9.1
+SQLAlchemy==1.4.25
+uWSGI==2.0.20
+pyyaml==6.0
+requests==2.27.1
+Flask-Mail==0.9.1
+redis==3.5.3
+celery==5.2.2
+Flask-Cors==3.0.10
