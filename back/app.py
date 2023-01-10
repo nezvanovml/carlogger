@@ -85,34 +85,14 @@ class Role(db.Model):
     def __repr__(self):
         return 'Role %r' % self.name
 
-# class Transactions(db.Model):
-#     __tablename__ = 'transactions'
-#     id = db.Column(db.Integer, primary_key=True)
-#     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-#     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
-#     date_of_spent = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-#     sum = db.Column(db.Float, nullable=False, default=0.0)
-#     comment = db.Column(db.Text, nullable=True)
-#
-#     def __repr__(self):
-#         return 'Transaction %r' % self.id
-#
-# class Categories(db.Model):
-#     __tablename__ = 'categories'
-#     id = db.Column(db.Integer, primary_key=True)
-#     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-#     name = db.Column(db.String(30), nullable=False)
-#     income = db.Column(db.Boolean, default=False)
-#     description = db.Column(db.Text, nullable=True)
-#     transactions = db.relationship('Transactions', backref='Category', lazy=True)
-#
-#     def __repr__(self):
-#         return 'Category %r' % self.name
-
-
 reglamentxcar = db.Table('reglamentxcar',
     db.Column('car_modification_id', db.Integer, db.ForeignKey('car_modification.id'), primary_key=True),
     db.Column('reglament_work_id', db.Integer, db.ForeignKey('reglament_works.id'), primary_key=True)
+)
+
+personalreglamentxcar = db.Table('personalreglamentxcar',
+    db.Column('car_personal_id', db.Integer, db.ForeignKey('car_personal.id'), primary_key=True),
+    db.Column('personal_reglament_work_id', db.Integer, db.ForeignKey('personal_reglament_works.id'), primary_key=True)
 )
 
 class CarManufacturer(db.Model):
@@ -154,7 +134,7 @@ class CarPersonal(db.Model):
     comment = db.Column(db.Text, nullable=True)
     vin = db.Column(db.String(20), nullable=False)
     license_plate = db.Column(db.String(20), nullable=False)
-    mileage_date = db.Column(db.DateTime)
+    mileage_date = db.Column(db.DateTime, nullable=False)
     mileage = db.Column(db.Integer, nullable=False, default=0)
 
     def __repr__(self):
@@ -170,3 +150,17 @@ class ReglamentWorks(db.Model):
 
     def __repr__(self):
         return 'ReglamentWorks %r' % self.name
+    
+
+
+class PersonalReglamentWorks(db.Model):
+    __tablename__ = 'personal_reglament_works'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    interval_mileage = db.Column(db.Integer, nullable=False, default=0)
+    interval_month = db.Column(db.Integer, nullable=False, default=0)
+
+    def __repr__(self):
+        return 'PersonalReglamentWorks %r' % self.name

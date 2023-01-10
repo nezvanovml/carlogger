@@ -1,6 +1,6 @@
 import datetime
 
-from app import app, config, mail, db, User, Role, userxrole, CarManufacturer, CarModel, CarModification, CarPersonal, ReglamentWorks, reglamentxcar
+from app import app, config, mail, db, User, Role, userxrole, CarManufacturer, CarModel, CarModification, CarPersonal, ReglamentWorks, reglamentxcar, personalreglamentxcar, PersonalReglamentWorks
 from flask import request, render_template, redirect, Response, url_for, flash
 from functools import wraps
 
@@ -249,7 +249,7 @@ def checkauth():
 
 @app.route('/api/personal_car', methods=['GET'])
 @is_authorized()
-def transactions():
+def personal_cars():
     if request.method == 'GET':
         user_id = get_current_user()
 
@@ -259,13 +259,167 @@ def transactions():
             .all()
         result = {'data': []}
         for car in cars:
-            print(car)
             result['data'].append({
-                    'id': 0
+                'id': car.id,
+                'user_id': car.user_id,
+                'car_modification_id': car.car_modification_id,
+                'comment': car.comment,
+                'vin': car.vin,
+                'license_plate': car.license_plate,
+                'mileage_date': car.mileage_date.strftime("%Y-%m-%d"),
+                'mileage': car.mileage
+            })
+        return Response(json.dumps(result), mimetype="application/json", status=200)
+
+@app.route('/api/car_manufacturers', methods=['GET'])
+@is_authorized()
+def car_manufacturers():
+    if request.method == 'GET':
+
+        manufacturers = CarManufacturer.query.all()
+        result = {'data': []}
+        for manufacturer in manufacturers:
+            result['data'].append({
+                'id': manufacturer.id,
+                'name': manufacturer.name,
+                'description': manufacturer.description
+            })
+        return Response(json.dumps(result), mimetype="application/json", status=200)
+
+@app.route('/api/car_models', methods=['GET'])
+@is_authorized()
+def car_models():
+    if request.method == 'GET':
+
+        models = CarModel.query.all()
+        result = {'data': []}
+        for model in models:
+            result['data'].append({
+                'id': model.id,
+                'car_manufacturer_id': model.car_manufacturer_id,
+                'name': model.name,
+                'description': model.description
+            })
+        return Response(json.dumps(result), mimetype="application/json", status=200)
+
+@app.route('/api/car_modifications', methods=['GET'])
+@is_authorized()
+def car_modifications():
+    if request.method == 'GET':
+
+        modifications = CarModification.query.all()
+        result = {'data': []}
+        for modification in modifications:
+            result['data'].append({
+                'id': modification.id,
+                'car_model_id': modification.car_model_id,
+                'name': modification.name,
+                'description': modification.description
+            })
+        return Response(json.dumps(result), mimetype="application/json", status=200)
+
+@app.route('/api/reglament_works', methods=['GET'])
+@is_authorized()
+def reglament_works():
+    if request.method == 'GET':
+        user_id = get_current_user()
+
+
+        modification_id = request.args.get('modification', None)
+        try:
+            modification_id = int(modification_id)
+        except ValueError:
+            modification_id = None
+        except TypeError:
+            pass
+
+        works = ReglamentWorks.query
+
+        if modification_id:
+            modification = CarModification.query.filter(CarModification.id == modification_id).first()
+            if not modification:
+                return Response(json.dumps({'status': 'ERROR', 'description': f"modification not found."}),
+                                mimetype="application/json",
+                                status=404)
+            works = works.filter(CarModification.id == modification_id).join(reglamentxcar, reglamentxcar.columns.reglament_work_id == ReglamentWorks.id) \
+                .join(CarModification, CarModification.id == reglamentxcar.columns.car_modification_id)
+
+        works = works.all()
+        result = {'data': []}
+        for work in works:
+            result['data'].append({
+                'id': work.id,
+                'name': work.name,
+                'description': work.description,
+                'interval_mileage': work.interval_mileage,
+                'interval_month': work.interval_month
             })
         return Response(json.dumps(result), mimetype="application/json", status=200)
 
 
+@app.route('/api/reglament_works_for_car', methods=['GET'])
+@is_authorized()
+def reglament_works_for_car():
+    if request.method == 'GET':
+        user_id = get_current_user()
+
+
+        personal_car_id = request.args.get('personal_car', None)
+        try:
+            personal_car_id = int(personal_car_id)
+        except ValueError:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"personal_car not provided or has incorrect format."}),
+                            mimetype="application/json",
+                            status=400)
+        except TypeError:
+            return Response(
+                json.dumps({'status': 'ERROR', 'description': f"personal_car not provided or has incorrect format."}),
+                mimetype="application/json",
+                status=400)
+
+        car = CarPersonal.query.filter(CarPersonal.id == personal_car_id, CarPersonal.user_id == user_id).first()
+        if not car:
+            return Response(
+                json.dumps({'status': 'ERROR', 'description': f"Car not found or this user have not privilegies for this car."}),
+                mimetype="application/json",
+                status=404)
+        
+        works = ReglamentWorks.query
+        personal_works = PersonalReglamentWorks.query
+
+        car_modification = car.car_modification_id
+        works = works.filter(CarModification.id == car_modification).join(reglamentxcar,
+                                                                         reglamentxcar.columns.reglament_work_id == ReglamentWorks.id) \
+            .join(CarModification, CarModification.id == reglamentxcar.columns.car_modification_id)
+
+        personal_works = personal_works.filter(PersonalReglamentWorks.user_id == user_id, CarPersonal.user_id == user_id, CarPersonal.id == personal_car_id).join(personalreglamentxcar,
+                                                                                                 personalreglamentxcar.columns.personal_reglament_work_id == PersonalReglamentWorks.id) \
+            .join(CarPersonal, CarPersonal.id == personalreglamentxcar.columns.car_personal_id)
+
+
+
+        works = works.all()
+        personal_works = personal_works.all()
+        result = {'data': []}
+        for work in works:
+            result['data'].append({
+                'id': work.id,
+                'system': True,
+                'name': work.name,
+                'description': work.description,
+                'interval_mileage': work.interval_mileage,
+                'interval_month': work.interval_month
+            })
+        for work in personal_works:
+            result['data'].append({
+                'id': work.id,
+                'system': False,
+                'name': work.name,
+                'description': work.description,
+                'interval_mileage': work.interval_mileage,
+                'interval_month': work.interval_month
+            })
+        return Response(json.dumps(result), mimetype="application/json", status=200)
 
 if __name__ == "__main__":
     app.run(debug=False)
