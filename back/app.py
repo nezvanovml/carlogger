@@ -86,13 +86,8 @@ class Role(db.Model):
         return 'Role %r' % self.name
 
 reglamentxcar = db.Table('reglamentxcar',
-    db.Column('car_modification_id', db.Integer, db.ForeignKey('car_modification.id'), primary_key=True),
-    db.Column('reglament_work_id', db.Integer, db.ForeignKey('reglament_works.id'), primary_key=True)
-)
-
-personalreglamentxcar = db.Table('personalreglamentxcar',
     db.Column('car_personal_id', db.Integer, db.ForeignKey('car_personal.id'), primary_key=True),
-    db.Column('personal_reglament_work_id', db.Integer, db.ForeignKey('personal_reglament_works.id'), primary_key=True)
+    db.Column('reglament_work_id', db.Integer, db.ForeignKey('reglament_work.id'), primary_key=True)
 )
 
 class CarManufacturer(db.Model):
@@ -121,7 +116,6 @@ class CarModification(db.Model):
     car_model_id = db.Column(db.Integer, db.ForeignKey('car_model.id'))
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    reglament_work = db.relationship('ReglamentWorks', secondary=reglamentxcar, lazy='subquery')
 
     def __repr__(self):
         return 'CarModel %r' % self.name
@@ -140,27 +134,30 @@ class CarPersonal(db.Model):
     def __repr__(self):
         return 'CarPersonal %r' % self.id
 
-class ReglamentWorks(db.Model):
-    __tablename__ = 'reglament_works'
+class ReglamentWork(db.Model):
+    __tablename__ = 'reglament_work'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
     interval_mileage = db.Column(db.Integer, nullable=False, default=0)
     interval_month = db.Column(db.Integer, nullable=False, default=0)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), default=0, nullable=False)
 
     def __repr__(self):
-        return 'ReglamentWorks %r' % self.name
+        return 'ReglamentWork %r' % self.name
+
+class ReglamentWorkLog(db.Model):
+    __tablename__ = 'reglament_work_log'
+    id = db.Column(db.Integer, primary_key=True)
+    personal_car_id = db.Column(db.Integer, db.ForeignKey('car_personal.id'), default=0, nullable=False)
+    reglament_work_id = db.Column(db.Integer, db.ForeignKey('reglament_work.id'), default=0, nullable=False)
+    mileage = db.Column(db.Integer, nullable=False)
+    date = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow())
+    comment = db.Column(db.Text, nullable=True)
+
+
+    def __repr__(self):
+        return 'ReglamentWorkLog %r' % self.id
     
 
 
-class PersonalReglamentWorks(db.Model):
-    __tablename__ = 'personal_reglament_works'
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    name = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    interval_mileage = db.Column(db.Integer, nullable=False, default=0)
-    interval_month = db.Column(db.Integer, nullable=False, default=0)
-
-    def __repr__(self):
-        return 'PersonalReglamentWorks %r' % self.name
