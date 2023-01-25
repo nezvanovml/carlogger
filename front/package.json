@@ -1,5 +1,5 @@
 {
-  "name": "moneylogger",
+  "name": "carlogger",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -9,10 +9,12 @@
     "axios": "^1.1.3",
     "bootstrap": "^5.2.2",
     "chart.js": "^3.9.1",
+    "prop-types": "^15.8.1",
     "react": "^18.2.0",
     "react-bootstrap": "^2.5.0",
     "react-chartjs-2": "^4.3.1",
     "react-dom": "^18.2.0",
+    "react-fetch-hook": "^1.9.5",
     "react-router-dom": "^6.4.2",
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"

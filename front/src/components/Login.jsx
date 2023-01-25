@@ -1,21 +1,8 @@
 import React, { useState } from "react";
 import PropTypes from 'prop-types';
 import Alert from "./Alert.jsx";
-import img_interface from '../img/interface.png'
-import img_diagram from '../img/graph.png'
-import img_homescreen from '../img/homescreen.png'
 
-async function loginUser(credentials) {
-console.log(JSON.stringify(credentials))
- return fetch('/api/login', {
-   method: 'POST',
-   headers: {
-     'Content-Type': 'application/json'
-   },
-   body: JSON.stringify(credentials)
- })
-   .then(data => data.json())
-}
+
 
 export default function Login({ setToken }) {
   const [email, setEmail] = useState();
@@ -24,7 +11,7 @@ export default function Login({ setToken }) {
   const [AlertMain, setAlertMain] = useState({'error':{'show': false, 'text': ''}, 'success': {'show': false, 'text': ''}});
   const [AlertRegister, setAlertRegister] = useState({'error':{'show': false, 'text': ''}, 'success': {'show': false, 'text': ''}});
 
-  const register = async e => {
+const register = async e => {
         e.preventDefault();
         const target = e.target;
         console.log(target.name)
@@ -37,13 +24,13 @@ export default function Login({ setToken }) {
         console.log(email, first_name, last_name, birthdate, password_new_1, password_new_2)
         let data = {"email":email, "password": password_new_1, "first_name":first_name, "last_name": last_name, "birthdate": birthdate}
         if(password_new_1 === password_new_2){
-            let result = await fetch('/api/register', { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)})
+            let result = await fetch('http://localhost/api/register', { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)})
             let json_data = await result.json()
             if(json_data){
                     if (json_data.status == 'SUCCESS') {
                         setAlertRegister({'error':{'show': false, 'text': ''}, 'success': {'show': true, 'text': 'Пользователь зарегистрирован.'}});
                         let credentials = {'email': email, 'password': password_new_1}
-                        let result = await fetch('/api/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(credentials)})
+                        let result = await fetch('http://localhost/api/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(credentials)})
                         let json_data = await result.json()
                         if(json_data.status == 'SUCCESS'){
                             console.log('Token: ' + json_data.token)
@@ -69,7 +56,7 @@ export default function Login({ setToken }) {
     let credentials = {'email': email, 'password': password}
     console.log(JSON.stringify(credentials))
 
-    let result = await fetch('/api/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(credentials)})
+    let result = await fetch('http://localhost/api/login', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(credentials)})
     let json_data = await result.json()
     if(json_data.status == 'SUCCESS'){
         console.log('Token: ' + json_data.token)
@@ -83,11 +70,11 @@ export default function Login({ setToken }) {
   }
 
   return (
-    <div className="text-center">
+<div className="text-center">
       <div className="container mt-5 mb-3">
           <div className="col-lg-6 col-md-8 mx-auto">
-            <h1 className="fw-light">MoneyLogger</h1>
-            <p className="lead text-muted">Начните вести журнал своих трат.</p>
+            <h1 className="fw-light">CarLogger</h1>
+            <p className="lead text-muted">Минималистичная система для планирования технического обслуживания транспорта и учёта трат.</p>
           </div>
       </div>
       <div className="form-signin w-100 mt-5 m-auto">
@@ -143,35 +130,11 @@ export default function Login({ setToken }) {
             </div>
           </div>
       </div>
-      <div className="container mt-3 mb-3">
-        <div className="row g-4 py-5 row-cols-1 row-cols-lg-3">
-          <div className="feature col text-start">
-            <div className="text-center ">
-                <img src={img_interface} className="bi mb-3" height="200em" />
-            </div>
-            <h2 className="fw-light">Удобный интерфейс</h2>
-            <p className="lead text-muted">Приложением удобно пользоваться как с десктопа, так и с мобильных устройств.</p>
-          </div>
-          <div className="feature col text-start">
-            <div className="text-center">
-                <img src={img_diagram} className="bi mb-3" height="200em" />
-            </div>
-            <h2 className="fw-light">Визуализация трат</h2>
-            <p className="lead text-muted">Приложение динамически строит диаграмму, что позволяет наглядно оценить структуру ваших трат.</p>
-          </div>
-          <div className="feature col text-start">
-            <div className="text-center">
-                <img src={img_homescreen} className="bi mb-3" height="200em" />
-            </div>
-            <h2 className="fw-light">Мобильное приложение</h2>
-            <p className="lead text-muted">Приложение можно установить на домашний экран смартфона, что упрощает использование. Таким образом, вам не потребуется открывать браузер каждый раз.</p>
-          </div>
-        </div>
-      </div>
+
     </div>
   );
 }
 
-Login.propTypes = {
-  setToken: PropTypes.func.isRequired
-}
+//Login.propTypes = {
+//  setToken: PropTypes.func.isRequired
+//}

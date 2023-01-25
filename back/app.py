@@ -25,7 +25,9 @@ config = get_config(config_path)
 
 #initialize flaskapp object
 app = Flask(__name__)
-#CORS(app)
+
+app.config['CORS_HEADERS'] = 'Content-Type'
+CORS(app)
 
 app.config['WTF_CSRF_ENABLED'] = False
 app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 10
@@ -128,8 +130,7 @@ class CarPersonal(db.Model):
     comment = db.Column(db.Text, nullable=True)
     vin = db.Column(db.String(20), nullable=False)
     license_plate = db.Column(db.String(20), nullable=False)
-    mileage_date = db.Column(db.DateTime, nullable=False)
-    mileage = db.Column(db.Integer, nullable=False, default=0)
+    production_year = db.Column(db.Integer, nullable=False)
 
     def __repr__(self):
         return 'CarPersonal %r' % self.id
@@ -158,6 +159,17 @@ class ReglamentWorkLog(db.Model):
 
     def __repr__(self):
         return 'ReglamentWorkLog %r' % self.id
+
+class MileageLog(db.Model):
+    __tablename__ = 'mileage_log'
+    id = db.Column(db.Integer, primary_key=True)
+    personal_car_id = db.Column(db.Integer, db.ForeignKey('car_personal.id'), default=0, nullable=False)
+    mileage = db.Column(db.Integer, nullable=False)
+    date = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow())
+    comment = db.Column(db.Text, nullable=True)
+
+    def __repr__(self):
+        return 'MileageLog %r' % self.id
     
 
 

@@ -1,6 +1,6 @@
 {
-  "short_name": "MoneyLogger",
-  "name": "MoneyLogger - log and analyze your spents!",
+  "short_name": "CarLogger",
+  "name": "CarLogger - useful logger & reminder of car maintenance!",
   "icons": [
     {
       "src": "favicon.ico",

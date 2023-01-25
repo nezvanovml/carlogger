@@ -1,6 +1,6 @@
 import datetime
 
-from app import app, config, mail, db, User, Role, userxrole, CarPersonal, ReglamentWork, reglamentxcar, CarManufacturer, CarModel, CarModification, ReglamentWorkLog
+from app import app, config, mail, db, User, Role, userxrole, CarPersonal, ReglamentWork, reglamentxcar, CarManufacturer, CarModel, CarModification, ReglamentWorkLog, MileageLog
 from flask import request, render_template, redirect, Response, url_for, flash
 from functools import wraps
 
@@ -11,6 +11,10 @@ import re
 from flask_mail import Message
 from utils import check_password_was_not_used_earlier, check_list1_is_in_list2
 from sqlalchemy.sql import select, update, insert, delete
+
+from flask_cors import cross_origin
+
+import time
 
 
 def add_user(email, password, first_name, last_name, birthdate, active=True):
@@ -153,7 +157,89 @@ def initialization():
     return Response("OK.", mimetype="text/html",
                     status=200)
 
+@app.route('/api/register', methods=['PUT'])
+@cross_origin()
+def register():
+    if not request.is_json:
+        return Response(json.dumps({'status': 'ERROR', 'description': 'Provide correct JSON structure.'}),
+                        mimetype="application/json", status=400)
+    data = request.get_json()
+    if data:
+        email = data.get('email', None)
+        if not email:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"email not provided."}),
+                            mimetype="application/json",
+                            status=400)
+        if email:
+            if not re.fullmatch(r"[^@]+@[^@]+\.[^@]+", email):
+                return Response(json.dumps({'status': 'ERROR', 'description': f"Incorrect format of email."}),
+                                mimetype="application/json",
+                                status=400)
+            user = User.query.filter(User.email == email).first()
+            if user:
+                return Response(json.dumps({'status': 'ERROR', 'description': f"User with this email already registered."}),
+                                mimetype="application/json",
+                                status=400)
+
+        password = data.get('password', None)
+        if not password:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"password not provided."}),
+                            mimetype="application/json",
+                            status=400)
+
+        pattern = r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$'  # от 8 символов в разном регистре с цифрами
+        if re.match(pattern, password) is None:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"Password not matches security policy."}),
+                                mimetype="application/json",
+                                status=400)
+
+        first_name = data.get('first_name', None)
+        if not first_name:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"first_name not provided."}),
+                            mimetype="application/json",
+                            status=400)
+        last_name = data.get('last_name', None)
+        if not last_name:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"last_name not provided."}),
+                            mimetype="application/json",
+                            status=400)
+
+        birthdate = data.get('birthdate', None)
+
+        try:
+            birthdate = datetime.datetime.strptime(birthdate, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(json.dumps(
+                    {'status': 'ERROR', 'description': f"Incorrect format of birthdate. Must be YYYY-MM-DD."}),
+                    mimetype="application/json",
+                    status=400)
+        except TypeError:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"birthdate not provided."}),
+                                mimetype="application/json",
+                                status=400)
+
+        user = add_user(email=email, password=password, first_name=first_name, last_name=last_name,
+                        birthdate=birthdate)
+        user_role = add_role("USER")
+        result = False
+        if user_role and user:
+            result = add_role_for_user(user, user_role)
+
+        if result:
+            return Response(json.dumps({'status': 'SUCCESS', 'description': 'CREATED'}),
+                            mimetype="application/json",
+                            status=201)
+        else:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"Undefined error adding user."}),
+                            mimetype="application/json",
+                            status=500)
+    else:
+        return Response(json.dumps({'status': 'ERROR', 'description': 'check provided data format.'}),
+                        mimetype="application/json", status=400)
+
+
 @app.route('/api/login', methods=['POST'])
+@cross_origin()
 def login():
     if not request.is_json:
         return Response(json.dumps({'status': 'ERROR', 'description': 'Provide correct JSON structure.'}),
@@ -176,6 +262,7 @@ def login():
 
 
 @app.route('/api/destroy_token', methods=['POST'])
+@cross_origin()
 @is_authorized()
 def destroy_token():
     token = request.headers.get('Authorization', None)
@@ -191,6 +278,7 @@ def destroy_token():
 
 
 @app.route('/api/change_password', methods=['POST'])
+@cross_origin()
 @is_authorized()
 def change_password():
 
@@ -242,12 +330,14 @@ def change_password():
 
 
 @app.route('/api/checkauth', methods=['GET'])
+@cross_origin()
 @is_authorized()
 def checkauth():
     return Response(json.dumps({'status': 'SUCCESS', 'description': 'Token is correct.'}),
                             mimetype="application/json", status=200)
 
 @app.route('/api/user/car', methods=['GET'])
+@cross_origin()
 @is_authorized()
 def user_car():
     if request.method == 'GET':
@@ -257,27 +347,57 @@ def user_car():
             .join(CarModel, CarModification.car_model_id == CarModel.id) \
             .join(CarManufacturer, CarModel.car_manufacturer_id == CarManufacturer.id) \
             .all()
-        result = {'status': 'SUCCESS', 'data': []}
+        result = {'status': 'SUCCESS', 'result': []}
         for car in cars:
-            result['data'].append({
+            mileage = MileageLog.query.filter(MileageLog.personal_car_id == car.id).order_by(MileageLog.date.desc()).first()
+            mileage_counter = mileage.mileage if mileage else 0
+            mileage_date = mileage.date.strftime("%Y-%m-%d") if mileage else datetime.datetime.utcnow().strftime("%Y-%m-%d")
+
+            car_modification_id = car.car_modification_id
+            car_modification = CarModification.query.filter(CarModification.id == car_modification_id).first()
+            car_modification_name = car_modification.name
+
+            car_model_id = car_modification.car_model_id
+            car_model = CarModel.query.filter(CarModel.id == car_model_id).first()
+            car_model_name = car_model.name
+
+            car_manufacturer_id = car_model.car_manufacturer_id
+            car_manufacturer = CarManufacturer.query.filter(CarManufacturer.id == car_manufacturer_id).first()
+            car_manufacturer_name = car_manufacturer.name
+
+            result['result'].append({
                 'id': car.id,
                 'user_id': car.user_id,
-                'car_modification_id': car.car_modification_id,
+                'car_manufacturer': {
+                    'id': car_manufacturer_id,
+                    'name': car_manufacturer_name
+                },
+                'car_model': {
+                    'id': car_model_id,
+                    'name': car_model_name
+                },
+                'car_modification': {
+                    'id': car_modification_id,
+                    'name': car_modification_name
+                },
                 'comment': car.comment,
                 'vin': car.vin,
                 'license_plate': car.license_plate,
-                'mileage_date': car.mileage_date.strftime("%Y-%m-%d"),
-                'mileage': car.mileage
+                'production_year': car.production_year,
+                'mileage_date': mileage_date,
+                'mileage': mileage_counter
             })
+        time.sleep(1)
         return Response(json.dumps(result), mimetype="application/json", status=200)
 
 @app.route('/api/car/manufacturers', methods=['GET'])
+@cross_origin()
 @is_authorized()
 def car_manufacturers():
     if request.method == 'GET':
 
         manufacturers = CarManufacturer.query.all()
-        result = {'status': 'SUCCESS', 'data': []}
+        result = {'status': 'SUCCESS', 'result': []}
         for manufacturer in manufacturers:
             result['data'].append({
                 'id': manufacturer.id,
@@ -287,6 +407,7 @@ def car_manufacturers():
         return Response(json.dumps(result), mimetype="application/json", status=200)
 
 @app.route('/api/car/models', methods=['GET'])
+@cross_origin()
 @is_authorized()
 def car_models():
     if request.method == 'GET':
@@ -324,6 +445,7 @@ def car_models():
         return Response(json.dumps(result), mimetype="application/json", status=200)
 
 @app.route('/api/car/modifications', methods=['GET'])
+@cross_origin()
 @is_authorized()
 def car_modifications():
     if request.method == 'GET':
@@ -349,9 +471,9 @@ def car_modifications():
         if model_id:
             modifications = modifications.filter(CarModification.car_model_id == model_id)
         modifications = modifications.all()
-        result = {'status': 'SUCCESS', 'data': []}
+        result = {'status': 'SUCCESS', 'result': []}
         for modification in modifications:
-            result['data'].append({
+            result['result'].append({
                 'id': modification.id,
                 'car_model_id': modification.car_model_id,
                 'name': modification.name,
@@ -360,6 +482,7 @@ def car_modifications():
         return Response(json.dumps(result), mimetype="application/json", status=200)
 
 @app.route('/api/car/reglaments', methods=['GET'])
+@cross_origin()
 @is_authorized()
 def car_reglaments():
     if request.method == 'GET':
@@ -386,18 +509,22 @@ def car_reglaments():
                                 mimetype="application/json",
                                 status=404)
 
+        if not car.user_id == user_id:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"You have not access to car with provided car_id."}),
+                            mimetype="application/json",
+                            status=401)
         works = ReglamentWork.query.filter(CarPersonal.user_id == user_id, CarPersonal.id == car_id)\
             .join(reglamentxcar, reglamentxcar.columns.reglament_work_id == ReglamentWork.id)\
             .join(CarPersonal, CarPersonal.id == reglamentxcar.columns.car_personal_id)
 
         works = works.all()
-        result = {'status': 'SUCCESS', 'data': []}
+        result = {'status': 'SUCCESS', 'result': []}
         for work in works:
             last_reglament = ReglamentWorkLog.query.filter(ReglamentWorkLog.personal_car_id == car_id, ReglamentWorkLog.reglament_work_id == work.id)\
                 .order_by(ReglamentWorkLog.date.desc(), ReglamentWorkLog.mileage.desc()).first()
             last_reglament_date = last_reglament.date.strftime("%Y-%m-%d") if last_reglament else None
             last_reglament_mileage = last_reglament.mileage if last_reglament else None
-            result['data'].append({
+            result['result'].append({
                 'id': work.id,
                 'name': work.name,
                 'description': work.description,
@@ -405,6 +532,61 @@ def car_reglaments():
                 'interval_month': work.interval_month,
                 'last':{'mileage': last_reglament_mileage, 'date': last_reglament_date}
             })
+        time.sleep(1)
+        return Response(json.dumps(result), mimetype="application/json", status=200)
+
+@app.route('/api/car/works', methods=['GET'])
+@cross_origin()
+@is_authorized()
+def car_works():
+    if request.method == 'GET':
+        user_id = get_current_user()
+
+        car_id = request.args.get('car_id', None)
+        if not car_id:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"car_id not provided."}),
+                            mimetype="application/json",
+                            status=400)
+        try:
+            car_id = int(car_id)
+        except ValueError:
+            car_id = None
+        except TypeError:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"Incorrect format of car_id."}),
+                                mimetype="application/json",
+                                status=400)
+
+
+        car = CarPersonal.query.filter(CarPersonal.id == car_id).first()
+        if not car:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"car_id does not exist."}),
+                                mimetype="application/json",
+                                status=404)
+
+        if not car.user_id == user_id:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"You have not access to car with provided car_id."}),
+                            mimetype="application/json",
+                            status=401)
+        works = ReglamentWorkLog.query.filter(ReglamentWorkLog.personal_car_id == car_id)
+
+
+        works = works.all()
+        result = {'status': 'SUCCESS', 'result': []}
+        for work in works:
+            reglament = ReglamentWork.query.filter(ReglamentWork.id == work.reglament_work_id).first()
+            reglament_name = reglament.name if reglament else ''
+            print(work)
+            result['result'].append({
+                'id': work.id,
+                'reglament_work': {
+                    'id': work.reglament_work_id,
+                    'name': reglament_name
+                },
+                'mileage': work.mileage,
+                'date': work.date.strftime("%Y-%m-%d"),
+                'comment': work.comment
+            })
+        time.sleep(1)
         return Response(json.dumps(result), mimetype="application/json", status=200)
 
 
