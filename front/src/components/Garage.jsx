@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import Alert from "./Alert.jsx";
+//import Alert from "./Alert.jsx";
 import useFetch from "react-fetch-hook";
 
 function Car(props) {
@@ -53,42 +53,11 @@ function Car(props) {
                     <div className="col">
                     </div>
                 </div>
-                <div className="row mt-3">
-                    <div className="col">
-                        <p className="h3 text-start">Предстоящие работы</p>
 
-                        <div className="list-group">
-                            <span className="list-group-item list-group-item-action" aria-current="false">
-                                <div className="d-flex w-100 justify-content-between">
-                                  <h5 className="mb-1">Замена масла в ДВС</h5>
-                                  <span> осталось 2300 км или 2 месяца</span>
-                                </div>
-                                <div className="progress" role="progressbar" aria-label="Progress" aria-valuenow="70" aria-valuemin="0" aria-valuemax="100">
-                                    <div className="progress-bar" style={{width: '70%'}}></div>
-                                </div>
-                              </span>
-                              <span className="list-group-item list-group-item-action" aria-current="false">
-                                <div className="d-flex w-100 justify-content-between">
-                                  <h5 className="mb-1">Продление ОСАГО</h5>
-                                  <span> осталось 3 месяца</span>
-                                </div>
-                                <div className="progress" role="progressbar" aria-label="Progress" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100">
-                                    <div className="progress-bar" style={{width: '75%'}}></div>
-                                </div>
-                              </span>
-                          </div>
-
-                    </div>
-                </div>
 
                 <div className="row mt-3">
                     <div className="col">
                         <p className="h3 text-start">Список регламентных работ</p>
-
-
-
-
-
 
                         <div className="list-group">
                             <span className="list-group-item list-group-item-action" aria-current="true">
@@ -100,11 +69,13 @@ function Car(props) {
                             { resultReglaments.error && <div className="text-center">Не удалось получить данные. {resultReglaments.error.status}</div>}
                             {!resultReglaments.isLoading && resultReglaments.data.result.map((work, index) =>{
                                 return (
-                                <span className="list-group-item list-group-item-action" aria-current="false">
+                                <span className="list-group-item list-group-item-action" aria-current="false" key={work.id}>
                                     <div className="d-flex w-100 justify-content-between">
                                         <h5 className="mb-1">{work.name}</h5>
                                         <span>{work.interval_mileage ? work.interval_mileage + ' км'  : ''} {work.interval_mileage && work.interval_month ? ' или': ''} {work.interval_month ? work.interval_month + ' месяц(а/ев)'   : ''}</span>
                                     </div>
+                                    { work.next && work.next.percent && <div className="progress" role="progressbar" aria-label="Progress" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100"><div className="progress-bar" style={{width: work.next.percent+"%"}}></div></div>}
+
                                 </span>
                                 );
                             })}
@@ -126,7 +97,7 @@ function Car(props) {
                             { resultWorks.isLoading && <span className="list-group-item list-group-item-action" aria-current="false"><div className="spinner-border" role="status"><span className="visually-hidden">Loading...</span></div></span>}
                             {!resultWorks.isLoading && resultWorks.data.result.map((work, index) =>{
                                 return (
-                                <span className="list-group-item list-group-item-action" aria-current="false">
+                                <span className="list-group-item list-group-item-action" aria-current="false" key={work.id}>
                                     <div className="d-flex w-100 justify-content-between">
                                         <h5 className="mb-1">{work.reglament_work.name}</h5>
                                         <span>{ new Date( Date.parse(work.date)).toLocaleString("ru", {year: 'numeric',month: 'long',day: 'numeric'}) } {work.mileage > 0 ? '(' + work.mileage + 'км)': ''}</span>
@@ -170,7 +141,7 @@ if (!result.isLoading) {
       <div className="container text-center">
        {result.data.result.map((car, index) =>{
             return(
-                 <Car token={token} car={car}/>
+                 <Car token={token} car={car} key={car.id}/>
             )
         })}
 

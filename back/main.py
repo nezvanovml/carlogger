@@ -15,6 +15,8 @@ from sqlalchemy.sql import select, update, insert, delete
 from flask_cors import cross_origin
 
 import time
+import datetime
+from dateutil.relativedelta import relativedelta
 
 
 def add_user(email, password, first_name, last_name, birthdate, active=True):
@@ -513,6 +515,11 @@ def car_reglaments():
             return Response(json.dumps({'status': 'ERROR', 'description': f"You have not access to car with provided car_id."}),
                             mimetype="application/json",
                             status=401)
+
+        mileage = MileageLog.query.filter(MileageLog.personal_car_id == car_id).order_by(MileageLog.date.desc()).first()
+        current_mileage = mileage.mileage if mileage else None
+
+
         works = ReglamentWork.query.filter(CarPersonal.user_id == user_id, CarPersonal.id == car_id)\
             .join(reglamentxcar, reglamentxcar.columns.reglament_work_id == ReglamentWork.id)\
             .join(CarPersonal, CarPersonal.id == reglamentxcar.columns.car_personal_id)
@@ -520,18 +527,59 @@ def car_reglaments():
         works = works.all()
         result = {'status': 'SUCCESS', 'result': []}
         for work in works:
-            last_reglament = ReglamentWorkLog.query.filter(ReglamentWorkLog.personal_car_id == car_id, ReglamentWorkLog.reglament_work_id == work.id)\
-                .order_by(ReglamentWorkLog.date.desc(), ReglamentWorkLog.mileage.desc()).first()
-            last_reglament_date = last_reglament.date.strftime("%Y-%m-%d") if last_reglament else None
-            last_reglament_mileage = last_reglament.mileage if last_reglament else None
-            result['result'].append({
+            current_work = {
                 'id': work.id,
                 'name': work.name,
                 'description': work.description,
                 'interval_mileage': work.interval_mileage,
                 'interval_month': work.interval_month,
-                'last':{'mileage': last_reglament_mileage, 'date': last_reglament_date}
-            })
+                'previous': None,
+                'next': None
+            }
+
+            previous_reglament = ReglamentWorkLog.query.filter(ReglamentWorkLog.personal_car_id == car_id, ReglamentWorkLog.reglament_work_id == work.id)\
+                .order_by(ReglamentWorkLog.date.desc(), ReglamentWorkLog.mileage.desc()).first()
+            previous_reglament_date = previous_reglament.date.strftime("%Y-%m-%d") if previous_reglament else None
+            previous_reglament_mileage = previous_reglament.mileage if previous_reglament else None
+
+            if previous_reglament:
+                current_work['previous'] = {'mileage': previous_reglament_mileage, 'date': previous_reglament_date}
+
+            if work.interval_mileage > 0 or work.interval_month > 0:
+                next_reglament = {}
+                next_reglament['expired'] = False
+
+                last_reglament_issued_mileage_percent = 0
+                if work.interval_mileage > 0 and current_mileage and previous_reglament_mileage:
+                    temp_mileage = work.interval_mileage - (current_mileage - previous_reglament_mileage)
+                    if temp_mileage <= 0:
+                        next_reglament['expired'] = True
+                        next_reglament['mileage'] = 0
+                        last_reglament_issued_mileage_percent = 100
+                    else:
+                        next_reglament['mileage'] = temp_mileage
+                        last_reglament_issued_mileage_percent = int((current_mileage - previous_reglament_mileage) / work.interval_mileage * 100)
+
+                previous_reglament_issued_month_percent = 0
+                if work.interval_month > 0 and previous_reglament and previous_reglament.date:
+                    end_date = previous_reglament.date + relativedelta(months=work.interval_month)
+                    next_reglament['date'] = end_date.strftime("%Y-%m-%d")
+                    current_date = datetime.datetime.utcnow()
+                    total_days = (end_date - previous_reglament.date).days
+                    if current_date >= end_date:
+                        last_reglament_remain_month = 0
+                        last_reglament_issued_month_percent = 100
+                    else:
+                        last_reglament_remain_month = int((end_date - current_date).days / 30)
+                        last_reglament_issued_month_percent = int(
+                            ((current_date - previous_reglament.date).days) / total_days * 100)
+                    next_reglament['months'] = last_reglament_remain_month
+
+                if (last_reglament_issued_mileage_percent or last_reglament_issued_month_percent):
+                    next_reglament['percent'] = last_reglament_issued_mileage_percent if last_reglament_issued_mileage_percent > last_reglament_issued_month_percent else last_reglament_issued_month_percent
+
+                current_work['next'] = next_reglament
+            result['result'].append(current_work)
         time.sleep(1)
         return Response(json.dumps(result), mimetype="application/json", status=200)
 
