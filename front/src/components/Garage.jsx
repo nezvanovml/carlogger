@@ -69,12 +69,35 @@ function Car(props) {
                             { resultReglaments.error && <div className="text-center">Не удалось получить данные. {resultReglaments.error.status}</div>}
                             {!resultReglaments.isLoading && resultReglaments.data.result.map((work, index) =>{
                                 return (
-                                <span className="list-group-item list-group-item-action" aria-current="false" key={work.id}>
+                                <span className="list-group-item list-group-item-action" aria-current="false" key={work.id} data-bs-toggle="collapse" data-bs-target={"#collapseWork"+work.id}>
                                     <div className="d-flex w-100 justify-content-between">
                                         <h5 className="mb-1">{work.name}</h5>
                                         <span>{work.interval_mileage ? work.interval_mileage + ' км'  : ''} {work.interval_mileage && work.interval_month ? ' или': ''} {work.interval_month ? work.interval_month + ' месяц(а/ев)'   : ''}</span>
                                     </div>
                                     <div className="progress" role="progressbar" aria-label="Progress" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100"><div className={"progress-bar "+ (work.expiration_percent === 100 ? "bg-danger" : (work.expiration_percent > 80 ? "bg-warning" : "bg-success"))} style={{width: work.expiration_percent+"%"}}>{work.expiration_percent}%</div></div>
+
+                                    <div className="collapse" id={"collapseWork"+work.id}>
+                                                <div className="w-100 justify-content-between mt-3">
+                                                    <form>
+                                                                <input type="text" className="visually-hidden" name="id" defaultValue={work.id} />
+                                                                <div className="input-group mb-3">
+                                                                        <input type="number" step="1" name="month" className="form-control" placeholder="Месяц" defaultValue={work.interval.month} />
+                                                                        <span className="input-group-text" id="basic-addon2">Интервал в месяцах</span>
+                                                                </div>
+                                                                <div className="input-group mb-3">
+                                                                        <input type="number" step="1" name="mileage" className="form-control" placeholder="Километр" defaultValue={work.interval.mileage} />
+                                                                        <span className="input-group-text" id="basic-addon2">Интервал в километрах</span>
+                                                                </div>
+                                                                <div className="mb-3">
+                                                                        <input className="form-control" name="description"  list="datalistOptions" id="DataList" placeholder="Описание"  defaultValue={work.description} />
+                                                                </div>
+                                                                <div className="d-flex w-100 justify-content-between">
+                                                                        <button type="button" className="btn btn-danger">Удалить</button>
+                                                                        <button type="submit" className="btn btn-success" >Сохранить</button>
+                                                                </div>
+                                                        </form>
+                                                </div>
+                                        </div>
 
                                 </span>
                                 );
