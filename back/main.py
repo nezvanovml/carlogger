@@ -531,11 +531,16 @@ def car_reglaments():
                 'id': work.id,
                 'name': work.name,
                 'description': work.description,
-                'interval_mileage': work.interval_mileage,
-                'interval_month': work.interval_month,
+                'interval':{
+                    'mileage': work.interval_mileage,
+                    'month': work.interval_month
+                },
+                'expired': False,
+                'expiration_percent': 0,
                 'previous': None,
                 'next': None
             }
+            next_work = {}
 
             previous_reglament = ReglamentWorkLog.query.filter(ReglamentWorkLog.personal_car_id == car_id, ReglamentWorkLog.reglament_work_id == work.id)\
                 .order_by(ReglamentWorkLog.date.desc(), ReglamentWorkLog.mileage.desc()).first()
@@ -545,41 +550,81 @@ def car_reglaments():
             if previous_reglament:
                 current_work['previous'] = {'mileage': previous_reglament_mileage, 'date': previous_reglament_date}
 
-            if work.interval_mileage > 0 or work.interval_month > 0:
-                next_reglament = {}
-                next_reglament['expired'] = False
+                if work.interval_mileage > 0:
+                    if previous_reglament_mileage + work.interval_mileage <= current_mileage:
+                        current_work['expired'] = True
+                        current_work['expiration_percent'] = 100
+                    next_work['mileage'] = previous_reglament_mileage + work.interval_mileage
+                    next_work['remain_mileage'] = previous_reglament_mileage + work.interval_mileage - current_mileage if not current_work['expired'] else 0
+                    temp_percent = int((current_mileage - previous_reglament_mileage) / work.interval_mileage * 100)
+                    current_work['expiration_percent'] = temp_percent if temp_percent > current_work['expiration_percent'] else current_work['expiration_percent']
 
-                last_reglament_issued_mileage_percent = 0
-                if work.interval_mileage > 0 and current_mileage and previous_reglament_mileage:
-                    temp_mileage = work.interval_mileage - (current_mileage - previous_reglament_mileage)
-                    if temp_mileage <= 0:
-                        next_reglament['expired'] = True
-                        next_reglament['mileage'] = 0
-                        last_reglament_issued_mileage_percent = 100
-                    else:
-                        next_reglament['mileage'] = temp_mileage
-                        last_reglament_issued_mileage_percent = int((current_mileage - previous_reglament_mileage) / work.interval_mileage * 100)
-
-                previous_reglament_issued_month_percent = 0
-                if work.interval_month > 0 and previous_reglament and previous_reglament.date:
-                    end_date = previous_reglament.date + relativedelta(months=work.interval_month)
-                    next_reglament['date'] = end_date.strftime("%Y-%m-%d")
+                if work.interval_month > 0:
+                    work_date = previous_reglament.date + relativedelta(months=work.interval_month)
                     current_date = datetime.datetime.utcnow()
-                    total_days = (end_date - previous_reglament.date).days
-                    if current_date >= end_date:
-                        last_reglament_remain_month = 0
-                        last_reglament_issued_month_percent = 100
-                    else:
-                        last_reglament_remain_month = int((end_date - current_date).days / 30)
-                        last_reglament_issued_month_percent = int(
-                            ((current_date - previous_reglament.date).days) / total_days * 100)
-                    next_reglament['months'] = last_reglament_remain_month
+                    if current_date >= work_date:
+                        current_work['expired'] = True
+                        current_work['expiration_percent'] = 100
+                    next_work['date'] = work_date.strftime("%Y-%m-%d")
+                    next_work['remain_months'] = int((work_date - current_date).days / 30) if not current_work['expired'] else 0
+                    total_days = (work_date - previous_reglament.date).days
+                    temp_percent = int(((current_date - previous_reglament.date).days) / total_days * 100)
+                    current_work['expiration_percent'] = temp_percent if temp_percent > current_work[
+                        'expiration_percent'] else current_work['expiration_percent']
 
-                if (last_reglament_issued_mileage_percent or last_reglament_issued_month_percent):
-                    next_reglament['percent'] = last_reglament_issued_mileage_percent if last_reglament_issued_mileage_percent > last_reglament_issued_month_percent else last_reglament_issued_month_percent
 
-                current_work['next'] = next_reglament
+
+
+
+            else:
+                current_work['expired'] = True
+                current_work['expiration_percent'] = 100
+                next_work['mileage'] = current_mileage
+                next_work['date'] = datetime.datetime.utcnow().strftime("%Y-%m-%d")
+                next_work['remain_mileage'] = 0
+                next_work['remain_months'] = 0
+
+            current_work['next'] = next_work
+
+
+
+
+
+
+            # last_reglament_issued_mileage_percent = 0
+            # if work.interval_mileage > 0 and current_mileage and previous_reglament_mileage:
+            #     temp_mileage = work.interval_mileage - (current_mileage - previous_reglament_mileage)
+            #     if temp_mileage <= 0:
+            #         current_work['expired'] = True
+            #         next_reglament['mileage'] = 0
+            #         last_reglament_issued_mileage_percent = 100
+            #     else:
+            #         next_reglament['mileage'] = temp_mileage
+            #         last_reglament_issued_mileage_percent = int(
+            #             (current_mileage - previous_reglament_mileage) / work.interval_mileage * 100)
+            #
+            # previous_reglament_issued_month_percent = 0
+            # if work.interval_month > 0 and previous_reglament and previous_reglament.date:
+            #     end_date = previous_reglament.date + relativedelta(months=work.interval_month)
+            #     next_reglament['date'] = end_date.strftime("%Y-%m-%d")
+            #     current_date = datetime.datetime.utcnow()
+            #     total_days = (end_date - previous_reglament.date).days
+            #     if current_date >= end_date:
+            #         last_reglament_remain_month = 0
+            #         last_reglament_issued_month_percent = 100
+            #     else:
+            #         last_reglament_remain_month = int((end_date - current_date).days / 30)
+            #         last_reglament_issued_month_percent = int(
+            #             ((current_date - previous_reglament.date).days) / total_days * 100)
+            #     next_reglament['months'] = last_reglament_remain_month
+            #
+            # if (last_reglament_issued_mileage_percent or last_reglament_issued_month_percent):
+            #     next_reglament[
+            #         'percent'] = last_reglament_issued_mileage_percent if last_reglament_issued_mileage_percent > last_reglament_issued_month_percent else last_reglament_issued_month_percent
+            #
+            # current_work['next'] = next_reglament
             result['result'].append(current_work)
+        result['result'] = sorted(result['result'], key=lambda d: d['expiration_percent'], reverse=True)
         time.sleep(1)
         return Response(json.dumps(result), mimetype="application/json", status=200)
 

@@ -24,7 +24,7 @@ function Car(props) {
 //    }
 
     return (
-    <div className="row ">
+    <div className="row mt-5">
           <div className="col">
             <div className="container text-center">
                 <div className="row row-cols-2">
@@ -74,7 +74,7 @@ function Car(props) {
                                         <h5 className="mb-1">{work.name}</h5>
                                         <span>{work.interval_mileage ? work.interval_mileage + ' км'  : ''} {work.interval_mileage && work.interval_month ? ' или': ''} {work.interval_month ? work.interval_month + ' месяц(а/ев)'   : ''}</span>
                                     </div>
-                                    { work.next && work.next.percent && <div className="progress" role="progressbar" aria-label="Progress" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100"><div className="progress-bar" style={{width: work.next.percent+"%"}}></div></div>}
+                                    <div className="progress" role="progressbar" aria-label="Progress" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100"><div className={"progress-bar "+ (work.expiration_percent === 100 ? "bg-danger" : (work.expiration_percent > 80 ? "bg-warning" : "bg-success"))} style={{width: work.expiration_percent+"%"}}>{work.expiration_percent}%</div></div>
 
                                 </span>
                                 );
