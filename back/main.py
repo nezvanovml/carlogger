@@ -1,6 +1,6 @@
 import datetime
 
-from app import app, config, mail, db, User, Role, userxrole, CarPersonal, ReglamentWork, reglamentxcar, CarManufacturer, CarModel, CarModification, ReglamentWorkLog, MileageLog
+from app import app, config, mail, db, User, Role, userxrole, CarPersonal, ReglamentWork, CarManufacturer, CarModel, CarModification, ReglamentWorkLog, MileageLog
 from flask import request, render_template, redirect, Response, url_for, flash
 from functools import wraps
 
@@ -389,7 +389,7 @@ def user_car():
                 'mileage_date': mileage_date,
                 'mileage': mileage_counter
             })
-        time.sleep(1)
+
         return Response(json.dumps(result), mimetype="application/json", status=200)
 
 @app.route('/api/car/manufacturers', methods=['GET'])
@@ -483,7 +483,7 @@ def car_modifications():
             })
         return Response(json.dumps(result), mimetype="application/json", status=200)
 
-@app.route('/api/car/reglaments', methods=['GET'])
+@app.route('/api/car/reglaments', methods=['GET', 'POST', 'PUT', 'DELETE'])
 @cross_origin()
 @is_authorized()
 def car_reglaments():
@@ -521,8 +521,7 @@ def car_reglaments():
 
 
         works = ReglamentWork.query.filter(CarPersonal.user_id == user_id, CarPersonal.id == car_id)\
-            .join(reglamentxcar, reglamentxcar.columns.reglament_work_id == ReglamentWork.id)\
-            .join(CarPersonal, CarPersonal.id == reglamentxcar.columns.car_personal_id)
+            .join(CarPersonal, CarPersonal.id == ReglamentWork.personal_car_id)
 
         works = works.all()
         result = {'status': 'SUCCESS', 'result': []}
@@ -533,7 +532,7 @@ def car_reglaments():
                 'description': work.description,
                 'interval':{
                     'mileage': work.interval_mileage,
-                    'month': work.interval_month
+                    'months': work.interval_months
                 },
                 'expired': False,
                 'expiration_percent': 0,
@@ -559,8 +558,8 @@ def car_reglaments():
                     temp_percent = int((current_mileage - previous_reglament_mileage) / work.interval_mileage * 100)
                     current_work['expiration_percent'] = temp_percent if temp_percent > current_work['expiration_percent'] else current_work['expiration_percent']
 
-                if work.interval_month > 0:
-                    work_date = previous_reglament.date + relativedelta(months=work.interval_month)
+                if work.interval_months > 0:
+                    work_date = previous_reglament.date + relativedelta(months=work.interval_months)
                     current_date = datetime.datetime.utcnow()
                     if current_date >= work_date:
                         current_work['expired'] = True
@@ -571,11 +570,6 @@ def car_reglaments():
                     temp_percent = int(((current_date - previous_reglament.date).days) / total_days * 100)
                     current_work['expiration_percent'] = temp_percent if temp_percent > current_work[
                         'expiration_percent'] else current_work['expiration_percent']
-
-
-
-
-
             else:
                 current_work['expired'] = True
                 current_work['expiration_percent'] = 100
@@ -585,48 +579,216 @@ def car_reglaments():
                 next_work['remain_months'] = 0
 
             current_work['next'] = next_work
-
-
-
-
-
-
-            # last_reglament_issued_mileage_percent = 0
-            # if work.interval_mileage > 0 and current_mileage and previous_reglament_mileage:
-            #     temp_mileage = work.interval_mileage - (current_mileage - previous_reglament_mileage)
-            #     if temp_mileage <= 0:
-            #         current_work['expired'] = True
-            #         next_reglament['mileage'] = 0
-            #         last_reglament_issued_mileage_percent = 100
-            #     else:
-            #         next_reglament['mileage'] = temp_mileage
-            #         last_reglament_issued_mileage_percent = int(
-            #             (current_mileage - previous_reglament_mileage) / work.interval_mileage * 100)
-            #
-            # previous_reglament_issued_month_percent = 0
-            # if work.interval_month > 0 and previous_reglament and previous_reglament.date:
-            #     end_date = previous_reglament.date + relativedelta(months=work.interval_month)
-            #     next_reglament['date'] = end_date.strftime("%Y-%m-%d")
-            #     current_date = datetime.datetime.utcnow()
-            #     total_days = (end_date - previous_reglament.date).days
-            #     if current_date >= end_date:
-            #         last_reglament_remain_month = 0
-            #         last_reglament_issued_month_percent = 100
-            #     else:
-            #         last_reglament_remain_month = int((end_date - current_date).days / 30)
-            #         last_reglament_issued_month_percent = int(
-            #             ((current_date - previous_reglament.date).days) / total_days * 100)
-            #     next_reglament['months'] = last_reglament_remain_month
-            #
-            # if (last_reglament_issued_mileage_percent or last_reglament_issued_month_percent):
-            #     next_reglament[
-            #         'percent'] = last_reglament_issued_mileage_percent if last_reglament_issued_mileage_percent > last_reglament_issued_month_percent else last_reglament_issued_month_percent
-            #
-            # current_work['next'] = next_reglament
             result['result'].append(current_work)
         result['result'] = sorted(result['result'], key=lambda d: d['expiration_percent'], reverse=True)
-        time.sleep(1)
+
         return Response(json.dumps(result), mimetype="application/json", status=200)
+    elif request.method == 'PUT':
+        user_id = get_current_user()
+        car_id = request.args.get('car_id', None)
+        if not car_id:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"car_id not provided."}),
+                            mimetype="application/json",
+                            status=400)
+        try:
+            car_id = int(car_id)
+        except ValueError:
+            car_id = None
+        except TypeError:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"Incorrect format of car_id."}),
+                                mimetype="application/json",
+                                status=400)
+
+
+        car = CarPersonal.query.filter(CarPersonal.id == car_id).first()
+        if not car:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"car_id does not exist."}),
+                                mimetype="application/json",
+                                status=404)
+
+        if not car.user_id == user_id:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"You have not access to car with provided car_id."}),
+                            mimetype="application/json",
+                            status=401)
+
+        mileage = request.args.get('mileage', None)
+        if not mileage:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"mileage not provided."}),
+                            mimetype="application/json",
+                            status=400)
+        try:
+            mileage = int(mileage)
+        except ValueError:
+            mileage = 0
+        except TypeError:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"Incorrect format of mileage."}),
+                            mimetype="application/json",
+                            status=400)
+
+        months = request.args.get('months', None)
+        if not months:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"months not provided."}),
+                            mimetype="application/json",
+                            status=400)
+        try:
+            months = int(months)
+        except ValueError:
+            months = 0
+        except TypeError:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"Incorrect format of months."}),
+                            mimetype="application/json",
+                            status=400)
+
+        if months == 0 and mileage == 0:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"One of mileage/months must not be equal to zero."}),
+                            mimetype="application/json",
+                            status=400)
+
+        name = request.args.get('name', None)
+        if not name:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"name not provided."}),
+                            mimetype="application/json",
+                            status=400)
+
+        description = request.args.get('description', None)
+        if not description:
+            description = ""
+
+        reglament_work = ReglamentWork(name=name,
+                                        description=description,
+                                        interval_mileage=mileage,
+                                        interval_months=months,
+                                        user_id=user_id,
+                                        personal_car_id=car_id
+                                       )
+        try:
+            db.session.add(reglament_work)
+            db.session.commit()
+        except Exception as error:
+            db.session.rollback()
+            return Response(json.dumps({'status': 'ERROR', 'description': error}), mimetype="application/json",
+                            status=500)
+        return Response(json.dumps({'status': 'SUCCESS', 'description': 'ADDED', 'id': reglament_work.id}),
+                        mimetype="application/json",
+                        status=201)
+    elif request.method == 'POST':
+        user_id = get_current_user()
+        id = request.args.get('id', None)
+        if not id:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"id not provided."}),
+                            mimetype="application/json",
+                            status=400)
+        try:
+            id = int(id)
+        except ValueError:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"Incorrect format of id."}),
+                            mimetype="application/json",
+                            status=400)
+        except TypeError:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"Incorrect format of id."}),
+                            mimetype="application/json",
+                            status=400)
+
+        reglament = ReglamentWork.query.filter(ReglamentWork.id == id).first()
+        if not reglament:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"id does not exist."}),
+                            mimetype="application/json",
+                            status=404)
+
+        if not reglament.user_id == user_id:
+            return Response(
+                json.dumps({'status': 'ERROR', 'description': f"You have not access to reglament with provided id."}),
+                mimetype="application/json",
+                status=401)
+
+        mileage = request.args.get('mileage', None)
+
+        if mileage:
+            try:
+                mileage = int(mileage)
+            except ValueError:
+                return Response(json.dumps({'status': 'ERROR', 'description': f"Incorrect format of mileage."}),
+                                mimetype="application/json",
+                                status=400)
+            else:
+                reglament.interval_mileage = mileage
+
+        months = request.args.get('months', None)
+        if  months:
+            try:
+                months = int(months)
+            except ValueError:
+                return Response(json.dumps({'status': 'ERROR', 'description': f"Incorrect format of months."}),
+                                mimetype="application/json",
+                                status=400)
+            else:
+                reglament.interval_months = months
+
+        if reglament.interval_mileage == 0 and reglament.interval_months == 0:
+            return Response(
+                json.dumps({'status': 'ERROR', 'description': f"One of mileage/months must not be equal to zero."}),
+                mimetype="application/json",
+                status=400)
+
+        name = request.args.get('name', None)
+        if name:
+            reglament.name = name
+
+        description = request.args.get('description', None)
+        if description:
+            reglament.description = description
+
+        try:
+            db.session.commit()
+        except Exception as error:
+            db.session.rollback()
+            return Response(json.dumps({'status': 'ERROR', 'description': error}), mimetype="application/json",
+                            status=500)
+        return Response(json.dumps({'status': 'SUCCESS', 'description': 'UPDATED', 'id': reglament.id}),
+                        mimetype="application/json",
+                        status=201)
+    elif request.method == 'DELETE':
+        user_id = get_current_user()
+
+        id = request.args.get('id', None)
+        if not id:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"id not provided."}),
+                            mimetype="application/json",
+                            status=400)
+        try:
+            id = int(id)
+        except ValueError:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"Incorrect format of id."}),
+                            mimetype="application/json",
+                            status=400)
+        except TypeError:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"Incorrect format of id."}),
+                            mimetype="application/json",
+                            status=400)
+
+        reglament = ReglamentWork.query.filter(ReglamentWork.id == id).first()
+        if not reglament:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"id does not exist."}),
+                            mimetype="application/json",
+                            status=404)
+
+        if not reglament.user_id == user_id:
+            return Response(
+                json.dumps({'status': 'ERROR', 'description': f"You have not access to reglament with provided id."}),
+                mimetype="application/json",
+                status=401)
+
+        ReglamentWorkLog.query.filter(ReglamentWorkLog.reglament_work_id == id).delete()
+        ReglamentWork.query.filter(ReglamentWork.id == id, ReglamentWork.user_id == user_id).delete()
+        try:
+            db.session.commit()
+        except Exception as error:
+            db.session.rollback()
+            return Response(json.dumps({'status': 'ERROR', 'description': error}), mimetype="application/json",
+                            status=500)
+        return Response(json.dumps({'status': 'SUCCESS', 'description': 'DELETED'}), mimetype="application/json",
+                        status=200)
+
 
 @app.route('/api/car/works', methods=['GET'])
 @cross_origin()
@@ -681,6 +843,131 @@ def car_works():
             })
         time.sleep(1)
         return Response(json.dumps(result), mimetype="application/json", status=200)
+    elif request.method == 'PUT':
+        user_id = get_current_user()
+        car_id = request.args.get('car_id', None)
+        if not car_id:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"car_id not provided."}),
+                            mimetype="application/json",
+                            status=400)
+        try:
+            car_id = int(car_id)
+        except ValueError:
+            car_id = None
+        except TypeError:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"Incorrect format of car_id."}),
+                                mimetype="application/json",
+                                status=400)
+
+
+        car = CarPersonal.query.filter(CarPersonal.id == car_id).first()
+        if not car:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"car_id does not exist."}),
+                                mimetype="application/json",
+                                status=404)
+
+        if not car.user_id == user_id:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"You have not access to car with provided car_id."}),
+                            mimetype="application/json",
+                            status=401)
+
+        mileage = MileageLog.query.filter(MileageLog.personal_car_id == car_id).order_by(MileageLog.date.desc()).first()
+        current_mileage = mileage.mileage if mileage else None
+
+        work_id = request.args.get('work_id', None)
+        if not work_id:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"work_id not provided."}),
+                            mimetype="application/json",
+                            status=400)
+        try:
+            work_id = int(work_id)
+        except ValueError:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"Incorrect format of work_id."}),
+                            mimetype="application/json",
+                            status=400)
+        except TypeError:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"Incorrect format of work_id."}),
+                            mimetype="application/json",
+                            status=400)
+
+        reglament_work = ReglamentWork.query.filter(ReglamentWork.id == work_id).first()
+        if not reglament_work:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"work_id does not exist."}),
+                            mimetype="application/json",
+                            status=404)
+
+        if not reglament_work.user_id == user_id:
+            return Response(
+                json.dumps({'status': 'ERROR', 'description': f"You have not access to reglament work with provided work_id."}),
+                mimetype="application/json",
+                status=401)
+
+
+        mileage = request.args.get('mileage', None)
+        if not mileage:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"mileage not provided."}),
+                            mimetype="application/json",
+                            status=400)
+        try:
+            mileage = int(mileage)
+        except ValueError:
+            mileage = 0
+        except TypeError:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"Incorrect format of mileage."}),
+                            mimetype="application/json",
+                            status=400)
+
+        date = request.args.get('date', None)
+        try:
+            date = datetime.datetime.strptime(date, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"Incorrect format of date."}),
+                            mimetype="application/json",
+                            status=400)
+        except TypeError:
+            return Response(json.dumps({'status': 'ERROR', 'description': f"Date not provided."}),
+                            mimetype="application/json",
+                            status=400)
+
+        comment = request.args.get('comment', None)
+        if not comment:
+            comment = ""
+
+
+        if current_mileage < mileage:
+            mileage_log = MileageLog(personal_car_id=car_id,
+                                     mileage=mileage,
+                                     date=date,
+                                     comment='Добавлен автоматически при проведении работ.'
+            )
+            try:
+                db.session.add(mileage_log)
+                db.session.commit()
+            except Exception as error:
+                db.session.rollback()
+                return Response(json.dumps({'status': 'ERROR', 'description': error}), mimetype="application/json",
+                                status=500)
+
+        reglament_work_log = ReglamentWorkLog(personal_car_id=car_id,
+                                              reglament_work_id=work_id,
+                                              mileage=mileage,
+                                              date=date,
+                                              comment=comment
+                                       )
+
+
+        try:
+            db.session.add(reglament_work_log)
+            db.session.commit()
+        except Exception as error:
+            db.session.rollback()
+            return Response(json.dumps({'status': 'ERROR', 'description': error}), mimetype="application/json",
+                            status=500)
+
+
+        return Response(json.dumps({'status': 'SUCCESS', 'description': 'ADDED', 'id': reglament_work_log.id}),
+                        mimetype="application/json",
+                        status=201)
 
 
 if __name__ == "__main__":

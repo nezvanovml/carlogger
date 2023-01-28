@@ -10,10 +10,10 @@ from flask_mail import Mail
 from celery import Celery
 from flask_cors import CORS
 
-
 # reading configuration from file
 BASE_DIR = pathlib.Path(__file__).parent
 config_path = BASE_DIR / 'config' / 'config.yaml'
+
 
 def get_config(path):
     with open(path) as f:
@@ -21,9 +21,10 @@ def get_config(path):
         config = yaml.safe_load(f)
     return config
 
+
 config = get_config(config_path)
 
-#initialize flaskapp object
+# initialize flaskapp object
 app = Flask(__name__)
 
 app.config['CORS_HEADERS'] = 'Content-Type'
@@ -32,7 +33,8 @@ CORS(app)
 app.config['WTF_CSRF_ENABLED'] = False
 app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 10
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', None)
-app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://{config["postgres"]["user"]}:{os.environ.get("POSTGRES_PASSWORD", "")}@{config["postgres"]["host"]}:{config["postgres"]["port"]}/{config["postgres"]["database"]}'
+app.config[
+    'SQLALCHEMY_DATABASE_URI'] = f'postgresql://{config["postgres"]["user"]}:{os.environ.get("POSTGRES_PASSWORD", "")}@{config["postgres"]["host"]}:{config["postgres"]["port"]}/{config["postgres"]["database"]}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -51,12 +53,10 @@ app.config['MAIL_USERNAME'] = config["email"]["login"]
 app.config['MAIL_PASSWORD'] = os.environ.get("EMAIL_PASSWORD", "")
 mail = Mail(app)
 
-
 userxrole = db.Table('userxrole',
-                         db.Column('user', db.Integer, db.ForeignKey('user.id'), primary_key=True),
-                         db.Column('role', db.Integer, db.ForeignKey('role.id'), primary_key=True)
-                         )
-
+                     db.Column('user', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+                     db.Column('role', db.Integer, db.ForeignKey('role.id'), primary_key=True)
+                     )
 
 
 class User(db.Model):
@@ -87,10 +87,11 @@ class Role(db.Model):
     def __repr__(self):
         return 'Role %r' % self.name
 
-reglamentxcar = db.Table('reglamentxcar',
-    db.Column('car_personal_id', db.Integer, db.ForeignKey('car_personal.id'), primary_key=True),
-    db.Column('reglament_work_id', db.Integer, db.ForeignKey('reglament_work.id'), primary_key=True)
-)
+
+# reglamentxcar = db.Table('reglamentxcar',
+#     db.Column('car_personal_id', db.Integer, db.ForeignKey('car_personal.id'), primary_key=True),
+#     db.Column('reglament_work_id', db.Integer, db.ForeignKey('reglament_work.id'), primary_key=True)
+# )
 
 class CarManufacturer(db.Model):
     __tablename__ = 'car_manufacturer'
@@ -102,6 +103,7 @@ class CarManufacturer(db.Model):
     def __repr__(self):
         return 'CarManufacturer %r' % self.name
 
+
 class CarModel(db.Model):
     __tablename__ = 'car_model'
     id = db.Column(db.Integer, primary_key=True)
@@ -112,6 +114,7 @@ class CarModel(db.Model):
     def __repr__(self):
         return 'CarModel %r' % self.name
 
+
 class CarModification(db.Model):
     __tablename__ = 'car_modification'
     id = db.Column(db.Integer, primary_key=True)
@@ -121,6 +124,7 @@ class CarModification(db.Model):
 
     def __repr__(self):
         return 'CarModel %r' % self.name
+
 
 class CarPersonal(db.Model):
     __tablename__ = 'car_personal'
@@ -135,17 +139,20 @@ class CarPersonal(db.Model):
     def __repr__(self):
         return 'CarPersonal %r' % self.id
 
+
 class ReglamentWork(db.Model):
     __tablename__ = 'reglament_work'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=True)
     interval_mileage = db.Column(db.Integer, nullable=False, default=0)
-    interval_month = db.Column(db.Integer, nullable=False, default=0)
+    interval_months = db.Column(db.Integer, nullable=False, default=0)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), default=0, nullable=False)
+    personal_car_id = db.Column(db.Integer, db.ForeignKey('car_personal.id'), default=0, nullable=False)
 
     def __repr__(self):
         return 'ReglamentWork %r' % self.name
+
 
 class ReglamentWorkLog(db.Model):
     __tablename__ = 'reglament_work_log'
@@ -156,9 +163,9 @@ class ReglamentWorkLog(db.Model):
     date = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow())
     comment = db.Column(db.Text, nullable=True)
 
-
     def __repr__(self):
         return 'ReglamentWorkLog %r' % self.id
+
 
 class MileageLog(db.Model):
     __tablename__ = 'mileage_log'
@@ -170,6 +177,3 @@ class MileageLog(db.Model):
 
     def __repr__(self):
         return 'MileageLog %r' % self.id
-    
-
-

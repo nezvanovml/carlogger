@@ -72,7 +72,7 @@ function Car(props) {
                                 <span className="list-group-item list-group-item-action" aria-current="false" key={work.id} data-bs-toggle="collapse" data-bs-target={"#collapseWork"+work.id}>
                                     <div className="d-flex w-100 justify-content-between">
                                         <h5 className="mb-1">{work.name}</h5>
-                                        <span>{work.interval_mileage ? work.interval_mileage + ' км'  : ''} {work.interval_mileage && work.interval_month ? ' или': ''} {work.interval_month ? work.interval_month + ' месяц(а/ев)'   : ''}</span>
+                                        <span>{work.interval_mileage ? work.interval_mileage + ' км'  : ''} {work.interval_mileage && work.interval_months ? ' или': ''} {work.interval_months ? work.interval_months + ' месяц(а/ев)'   : ''}</span>
                                     </div>
                                     <div className="progress" role="progressbar" aria-label="Progress" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100"><div className={"progress-bar "+ (work.expiration_percent === 100 ? "bg-danger" : (work.expiration_percent > 80 ? "bg-warning" : "bg-success"))} style={{width: work.expiration_percent+"%"}}>{work.expiration_percent}%</div></div>
 
@@ -81,7 +81,7 @@ function Car(props) {
                                                     <form>
                                                                 <input type="text" className="visually-hidden" name="id" defaultValue={work.id} />
                                                                 <div className="input-group mb-3">
-                                                                        <input type="number" step="1" name="month" className="form-control" placeholder="Месяц" defaultValue={work.interval.month} />
+                                                                        <input type="number" step="1" name="month" className="form-control" placeholder="Месяц" defaultValue={work.interval.months} />
                                                                         <span className="input-group-text" id="basic-addon2">Интервал в месяцах</span>
                                                                 </div>
                                                                 <div className="input-group mb-3">
