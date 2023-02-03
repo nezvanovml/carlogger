@@ -17,6 +17,7 @@
     "react-fetch-hook": "^1.9.5",
     "react-router-dom": "^6.4.2",
     "react-scripts": "5.0.1",
+    "react-use-trigger": "^0.3.4",
     "web-vitals": "^2.1.4"
   },
   "scripts": {

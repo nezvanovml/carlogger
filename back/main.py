@@ -714,7 +714,7 @@ def car_reglaments():
                 reglament.interval_mileage = mileage
 
         months = request.args.get('months', None)
-        if  months:
+        if months:
             try:
                 months = int(months)
             except ValueError:
@@ -790,7 +790,7 @@ def car_reglaments():
                         status=200)
 
 
-@app.route('/api/car/works', methods=['GET'])
+@app.route('/api/car/works', methods=['GET', 'POST', 'PUT', 'DELETE'])
 @cross_origin()
 @is_authorized()
 def car_works():
@@ -822,7 +822,7 @@ def car_works():
             return Response(json.dumps({'status': 'ERROR', 'description': f"You have not access to car with provided car_id."}),
                             mimetype="application/json",
                             status=401)
-        works = ReglamentWorkLog.query.filter(ReglamentWorkLog.personal_car_id == car_id)
+        works = ReglamentWorkLog.query.filter(ReglamentWorkLog.personal_car_id == car_id).order_by(ReglamentWorkLog.date.desc(), ReglamentWorkLog.mileage.desc())
 
 
         works = works.all()
@@ -841,7 +841,6 @@ def car_works():
                 'date': work.date.strftime("%Y-%m-%d"),
                 'comment': work.comment
             })
-        time.sleep(1)
         return Response(json.dumps(result), mimetype="application/json", status=200)
     elif request.method == 'PUT':
         user_id = get_current_user()
