@@ -14,7 +14,7 @@ function Header() {
 
           <ul className="nav nav-pills">
             <li className="nav-item"><NavLink className="nav-link px-2 link-dark" to="/">Гараж</NavLink></li>
-            <li className="nav-item"><NavLink className="nav-link px-2 link-dark" to="/Spents">Траты</NavLink></li>
+
             <li className="nav-item"><NavLink className="nav-link px-2 link-dark" to="/Settings">Настройки</NavLink></li>
           </ul>
         </header>
@@ -23,3 +23,4 @@ function Header() {
 }
 
 export default Header;
+//             <li className="nav-item"><NavLink className="nav-link px-2 link-dark" to="/Spents">Траты</NavLink></li>

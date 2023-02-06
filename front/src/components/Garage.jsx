@@ -13,6 +13,7 @@ function timeout(delay: number) {
 function Reglament(props) {
     const requestTriggerValue = useTrigger(requestTrigger);
     const [AlertUpdateReglament, setAlertUpdateReglament] = useState({'error':{'show': false, 'text': ''}, 'success': {'show': false, 'text': ''}});
+    const [AlertAddReglamentLog, setAlertAddReglamentLog] = useState({'error':{'show': false, 'text': ''}, 'success': {'show': false, 'text': ''}});
 
     const updateReglament = async e => {
         e.preventDefault();
@@ -53,6 +54,31 @@ function Reglament(props) {
         }
     }
 
+    const addReglamentLog = async e => {
+        e.preventDefault();
+        var reglament_id = e.target.elements.reglament_id.value;
+        var car_id = e.target.elements.car_id.value;
+        var mileage = e.target.elements.mileage.value;
+        var date = e.target.elements.date.value;
+        var comment = e.target.elements.comment.value;
+        console.log(reglament_id, car_id, mileage,date,comment);
+
+        let result = await fetch("http://localhost/api/car/works?car_id="+car_id+"&work_id="+reglament_id+"&mileage="+mileage+"&date="+date+"&comment="+comment, { method: 'PUT', headers: {'Authorization': props.token}})
+        let json_data = await result.json()
+        if (json_data.status == 'SUCCESS') {
+            setAlertAddReglamentLog({'error':{'show': false, 'text': ''}, 'success': {'show': true, 'text': 'Работа добавлена.'}});
+            e.target.reset()
+            await timeout(1000);
+            requestTrigger()
+            let collapse = document.getElementById("collapseWorkLog"+reglament_id);
+            collapse.classList.toggle('show')
+            setAlertAddReglamentLog({'error':{'show': false, 'text': ''}, 'success': {'show': false, 'text': ''}});
+
+        } else {
+            setAlertAddReglamentLog({'error':{'show': true, 'text': 'Произошла ошибка при добавлении работы. '+json_data.description}, 'success': {'show': false, 'text': ''}});
+        }
+    }
+
     return (
         <span className="list-group-item list-group-item-action" aria-current="false" key={props.work.id}>
             <div className="d-flex w-100 justify-content-between">
@@ -64,19 +90,18 @@ function Reglament(props) {
                     </div>
                     <div className="col text-end p-0">
                         <div className="btn-group btn-group-sm " role="group" aria-label="Basic mixed styles example">
-                            <button type="button" className="btn btn-outline-dark">Внести в историю</button>
+                            <button type="button" className="btn btn-outline-dark" data-bs-toggle="collapse" data-bs-target={"#collapseWorkLog"+props.work.id}>Внести в историю</button>
                             <button type="button" className="btn btn-outline-dark"  data-bs-toggle="collapse" data-bs-target={"#collapseWork"+props.work.id}>Изменить</button>
                         </div>
                     </div>
                 </div>
-
                 <span>
                     {props.work.interval_mileage ? props.work.interval_mileage + ' км'  : ''} {props.work.interval_mileage && props.work.interval_months ? ' или': ''} {props.work.interval_months ? props.work.interval_months + ' месяц(а/ев)'   : ''}
                 </span>
             </div>
 
             <div className="progress" role="progressbar" aria-label="Progress" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100">
-                <div className={"progress-bar "+ (props.work.expiration_percent === 100 ? "bg-danger" : (props.work.expiration_percent > 80 ? "bg-warning" : "bg-success"))} style={{width: props.work.expiration_percent+"%"}}>
+                <div className={"progress-bar "+ (props.work.expiration_percent >= 100 ? "bg-danger" : (props.work.expiration_percent > 80 ? "bg-warning" : "bg-success"))} style={{width: props.work.expiration_percent+"%"}}>
                     {props.work.expiration_percent}%
                 </div>
             </div>
@@ -100,10 +125,35 @@ function Reglament(props) {
                                     <input className="form-control" name="reglament_description" placeholder="Описание"  defaultValue={props.work.description} />
                         </div>
                         <div className="d-flex w-100 justify-content-between">
-                                    <button type="button" className="btn btn-danger"  onClick={e => deleteReglament(props.work.id)}>Удалить</button>
-                                    <button type="submit" className="btn btn-success" >Сохранить</button>
+                            <button type="button" className="btn btn-danger"  onClick={e => deleteReglament(props.work.id)}>Удалить</button>
+                            <button type="submit" className="btn btn-success" >Сохранить</button>
                         </div>
                         <Alert source={AlertUpdateReglament} />
+                    </form>
+                </div>
+            </div>
+
+            <div className="collapse" id={"collapseWorkLog"+props.work.id}>
+                <div className="w-100 justify-content-between mt-3">
+                    <form onSubmit={addReglamentLog}>
+                        <input type="text" className="visually-hidden" name="reglament_id"  defaultValue={props.work.id} />
+                        <input type="text" className="visually-hidden" name="car_id"  defaultValue={props.car.id} />
+                        <div className="form-floating mb-3">
+                            <input type="date" name="date" className="form-control" id={"DateReglamentLog"+props.work.id} defaultValue={new Date().toISOString().slice(0, 10)}/>
+                            <label htmlFor={"DateReglamentLog"+props.work.id}>Дата проведения работ</label>
+                        </div>
+                        <div className="form-floating mb-3">
+                            <input type="number" step="1" name="mileage" className="form-control" id={"MileageReglamentLog"+props.work.id} defaultValue={props.car.mileage} />
+                            <label htmlFor={"MileageReglamentLog"+props.work.id}>Пробег (км) на момент проведения работ</label>
+                        </div>
+                        <div className="form-floating mb-3">
+                            <input className="form-control" name="comment"  id={"CommentReglamentLog"+props.work.id} placeholder="Комментарий к работе"  defaultValue="" />
+                            <label htmlFor={"CommentReglamentLog"+props.work.id}>Комментарий к работе</label>
+                        </div>
+                        <div className="d-flex w-100 justify-content-between">
+                            <button type="submit" className="btn btn-success" >Добавить</button>
+                        </div>
+                        <Alert source={AlertAddReglamentLog} />
                     </form>
                 </div>
             </div>
@@ -117,50 +167,74 @@ function ReglamentLog(props) {
     const requestTriggerValue = useTrigger(requestTrigger);
     const [AlertUpdateReglamentLog, setAlertUpdateReglamentLog] = useState({'error':{'show': false, 'text': ''}, 'success': {'show': false, 'text': ''}});
 
-//    const updateReglamentLog = async e => {
-//        e.preventDefault();
-//        var reglament_id = e.target.elements.reglament_id.value;
-//        var name = e.target.elements.reglament_name.value;
-//        var interval_months = e.target.elements.reglament_interval_months.value;
-//        var interval_mileage = e.target.elements.reglament_interval_mileage.value;
-//        var description = e.target.elements.reglament_description.value;
-//        console.log(reglament_id, name, interval_months, interval_mileage, description);
-//
-//        let result = await fetch("http://localhost/api/car/reglaments?id="+reglament_id+"&mileage="+interval_mileage+"&months="+interval_months+"&name="+name+"&description="+description, { method: 'POST', headers: {'Authorization': props.token}})
-//        let json_data = await result.json()
-//        if (json_data.status == 'SUCCESS') {
-//            setAlertUpdateReglament({'error':{'show': false, 'text': ''}, 'success': {'show': true, 'text': 'Регламент изменён.'}});
-//            await timeout(1000);
-//            requestTrigger()
-//            setAlertUpdateReglament({'error':{'show': false, 'text': ''}, 'success': {'show': false, 'text': ''}});
-//
-//        } else {
-//            setAlertUpdateReglament({'error':{'show': true, 'text': 'Произошла ошибка при добавлении регламента. '+json_data.description}, 'success': {'show': false, 'text': ''}});
-//        }
-//    }
-//
-//    const deleteReglamentLog = async (id) => {
-//
-//        console.log(id);
-//
-//        let result = await fetch("http://localhost/api/car/reglaments?id="+id, { method: 'DELETE', headers: {'Authorization': props.token}})
-//        let json_data = await result.json()
-//        if (json_data.status == 'SUCCESS') {
-//            setAlertUpdateReglament({'error':{'show': false, 'text': ''}, 'success': {'show': true, 'text': 'Регламент удалён.'}});
-//            await timeout(1000);
-//            requestTrigger()
-//            setAlertUpdateReglament({'error':{'show': false, 'text': ''}, 'success': {'show': false, 'text': ''}});
-//
-//        } else {
-//            setAlertUpdateReglament({'error':{'show': true, 'text': 'Произошла ошибка при удалении регламента. '+json_data.description}, 'success': {'show': false, 'text': ''}});
-//        }
-//    }
+    const updateReglamentLog = async e => {
+        e.preventDefault();
+        var work_id = e.target.elements.work_id.value;
+        var mileage = e.target.elements.mileage.value;
+        var date = e.target.elements.date.value;
+        var comment = e.target.elements.comment.value;
+        console.log(work_id, mileage, date, comment);
+
+        let result = await fetch("http://localhost/api/car/works?work_id="+work_id+"&mileage="+mileage+"&date="+date+"&comment="+comment, { method: 'POST', headers: {'Authorization': props.token}})
+        let json_data = await result.json()
+        if (json_data.status == 'SUCCESS') {
+            setAlertUpdateReglamentLog({'error':{'show': false, 'text': ''}, 'success': {'show': true, 'text': 'Регламент изменён.'}});
+            await timeout(1000);
+            requestTrigger()
+            setAlertUpdateReglamentLog({'error':{'show': false, 'text': ''}, 'success': {'show': false, 'text': ''}});
+
+        } else {
+            setAlertUpdateReglamentLog({'error':{'show': true, 'text': 'Произошла ошибка при изменении регламента. '+json_data.description}, 'success': {'show': false, 'text': ''}});
+        }
+    }
+
+    const deleteReglamentLog = async (id) => {
+
+        console.log(id);
+
+        let result = await fetch("http://localhost/api/car/works?id="+id, { method: 'DELETE', headers: {'Authorization': props.token}})
+        let json_data = await result.json()
+        if (json_data.status == 'SUCCESS') {
+            setAlertUpdateReglamentLog({'error':{'show': false, 'text': ''}, 'success': {'show': true, 'text': 'Работа удалена.'}});
+            await timeout(1000);
+            requestTrigger()
+            setAlertUpdateReglamentLog({'error':{'show': false, 'text': ''}, 'success': {'show': false, 'text': ''}});
+
+        } else {
+            setAlertUpdateReglamentLog({'error':{'show': true, 'text': 'Произошла ошибка при удалении работы. '+json_data.description}, 'success': {'show': false, 'text': ''}});
+        }
+    }
 
     return (
         <span className="list-group-item list-group-item-action" aria-current="false" key={props.work.id}>
-            <div className="d-flex w-100 justify-content-between">
+            <div className="d-flex w-100 justify-content-between"  data-bs-toggle="collapse" data-bs-target={"#collapseWorkLogHistory"+props.work.id}>
                 <h5 className="mb-1">{props.work.reglament_work.name}</h5>
                 <span>{ new Date( Date.parse(props.work.date)).toLocaleString("ru", {year: 'numeric',month: 'long',day: 'numeric'}) } {props.work.mileage > 0 ? '(' + props.work.mileage + 'км)': ''}</span>
+            </div>
+            { props.work.comment && <p className="m-0 text-start"><small>{props.work.comment}</small></p>}
+            <div className="collapse" id={"collapseWorkLogHistory"+props.work.id}>
+                <div className="w-100 justify-content-between mt-3">
+                    <form onSubmit={updateReglamentLog}>
+                        <input type="text" className="visually-hidden" name="work_id"  defaultValue={props.work.id} />
+                        <div className="form-floating mb-3">
+                            <input type="date" name="date" className="form-control" id={"DateReglamentLog"+props.work.id} defaultValue={props.work.date}/>
+                            <label htmlFor={"DateReglamentLog"+props.work.id}>Дата проведения работ</label>
+                        </div>
+                        <div className="form-floating mb-3">
+                            <input type="number" step="1" name="mileage" className="form-control" id={"MileageReglamentLog"+props.work.id} defaultValue={props.work.mileage} />
+                            <label htmlFor={"MileageReglamentLog"+props.work.id}>Пробег (км) на момент проведения работ</label>
+                        </div>
+                        <div className="form-floating mb-3">
+                            <input className="form-control" name="comment"  id={"CommentReglamentLog"+props.work.id} placeholder="Комментарий к работе"  defaultValue="" />
+                            <label htmlFor={"CommentReglamentLog"+props.work.id}>Комментарий к работе</label>
+                        </div>
+                        <div className="d-flex w-100 justify-content-between">
+                            <button type="button" className="btn btn-danger"  onClick={e => deleteReglamentLog(props.work.id)}>Удалить</button>
+                            <button type="submit" className="btn btn-success" >Сохранить</button>
+                        </div>
+                        <Alert source={AlertUpdateReglamentLog} />
+                    </form>
+                </div>
             </div>
         </span>
 );
@@ -285,7 +359,7 @@ function Car(props) {
 
                             {!resultReglaments.isLoading && resultReglaments.data.result.map((work, index) =>{
                                 return(
-                                     <Reglament token={props.token} work={work} key={work.id}/>
+                                     <Reglament token={props.token} work={work} car={props.car} key={work.id}/>
                                 )
                             })}
                         </div>
