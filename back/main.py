@@ -519,6 +519,9 @@ def car_reglaments():
         mileage = MileageLog.query.filter(MileageLog.personal_car_id == car_id).order_by(MileageLog.date.desc()).first()
         current_mileage = mileage.mileage if mileage else None
 
+        only_issuing = request.args.get('only_issuing', 'False')
+        only_issuing = True if only_issuing == 'True' else False
+
 
         works = ReglamentWork.query.filter(CarPersonal.user_id == user_id, CarPersonal.id == car_id)\
             .join(CarPersonal, CarPersonal.id == ReglamentWork.personal_car_id)
@@ -579,6 +582,8 @@ def car_reglaments():
                 next_work['remain_months'] = 0
 
             current_work['next'] = next_work
+            if only_issuing and current_work['expiration_percent'] < 80:
+                continue
             result['result'].append(current_work)
         result['result'] = sorted(result['result'], key=lambda d: d['expiration_percent'], reverse=True)
 
@@ -822,6 +827,9 @@ def car_works():
             return Response(json.dumps({'status': 'ERROR', 'description': f"You have not access to car with provided car_id."}),
                             mimetype="application/json",
                             status=401)
+
+
+
         works = ReglamentWorkLog.query.filter(ReglamentWorkLog.personal_car_id == car_id).order_by(ReglamentWorkLog.date.desc(), ReglamentWorkLog.mileage.desc())
 
 

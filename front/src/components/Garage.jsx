@@ -242,12 +242,19 @@ function ReglamentLog(props) {
 }
 
 function Car(props) {
-    const requestTriggerValue = useTrigger(requestTrigger);
 
-    const resultReglaments = useFetch("http://localhost/api/car/reglaments?car_id="+props.car.id, {headers: {'Authorization': props.token}, depends: [requestTriggerValue]});
+    const requestTriggerValue = useTrigger(requestTrigger);
+    const [AlertAddReglament, setAlertAddReglament] = useState({'error':{'show': false, 'text': ''}, 'success': {'show': false, 'text': ''}});
+    const [showIssuing, setShowIssuing] = useState(true);
+
+
+
+    const resultReglaments = useFetch("http://localhost/api/car/reglaments?car_id="+props.car.id+"&only_issuing="+(showIssuing ? "True" : "False"), {headers: {'Authorization': props.token}, depends: [requestTriggerValue]});
     const resultWorks = useFetch("http://localhost/api/car/works?car_id="+props.car.id, {headers: {'Authorization': props.token}, depends: [requestTriggerValue]});
 
-    const [AlertAddReglament, setAlertAddReglament] = useState({'error':{'show': false, 'text': ''}, 'success': {'show': false, 'text': ''}});
+
+
+
 
 
     if (!resultReglaments.isLoading) {
@@ -283,6 +290,10 @@ function Car(props) {
         }
     }
 
+
+    useEffect(() => {
+    }, [showIssuing]);
+
     return (
     <div className="row mt-5">
           <div className="col">
@@ -292,7 +303,7 @@ function Car(props) {
                         <p className="h1 text-start">{props.car.car_manufacturer.name} {props.car.car_model.name}, {props.car.production_year}</p>
                     </div>
                     <div className="col">
-                        <p className="h1 text-end">{props.car.mileage} км</p>
+                        <p className="h1 text-end">{new Intl.NumberFormat("ru").format(props.car.mileage)} км</p>
                     </div>
                 </div>
                 <div className="row row-cols-2">
@@ -317,8 +328,17 @@ function Car(props) {
 
                 <div className="row mt-3">
                     <div className="col">
-                        <p className="h3 text-start">Список регламентных работ</p>
-
+                        <div className="row row-cols-2">
+                            <div className="col">
+                                <p className="h3 text-start">Список регламентных работ</p>
+                            </div>
+                            <div className="col">
+                                <div className="form-check form-switch form-check-reverse pt-2">
+                                    <input className="form-check-input" type="checkbox" id="flexSwitchCheckReverse" defaultChecked={true} onClick={e => setShowIssuing(e.target.checked)}/>
+                                    <label className="form-check-label" htmlFor="flexSwitchCheckReverse">Только истекающие</label>
+                                </div>
+                            </div>
+                        </div>
                         <div className="list-group">
                             <span className="list-group-item list-group-item-action">
                                 <div className="d-flex w-100 justify-content-center" data-bs-toggle="collapse" data-bs-target={"#collapseNewReglament_car"+props.car.id}>
@@ -392,6 +412,7 @@ function Car(props) {
 
         </div>
 );
+
 
 }
 
