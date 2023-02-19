@@ -225,7 +225,7 @@ function ReglamentLog(props) {
                             <label htmlFor={"MileageReglamentLog"+props.work.id}>Пробег (км) на момент проведения работ</label>
                         </div>
                         <div className="form-floating mb-3">
-                            <input className="form-control" name="comment"  id={"CommentReglamentLog"+props.work.id} placeholder="Комментарий к работе"  defaultValue="" />
+                            <input className="form-control" name="comment"  id={"CommentReglamentLog"+props.work.id} placeholder="Комментарий к работе"  defaultValue={props.work.comment} />
                             <label htmlFor={"CommentReglamentLog"+props.work.id}>Комментарий к работе</label>
                         </div>
                         <div className="d-flex w-100 justify-content-between">
@@ -308,7 +308,7 @@ function Car(props) {
                 </div>
                 <div className="row row-cols-2">
                     <div className="col">
-                        <p className="lead text-start">{props.car.car_modification.name}</p>
+                        <p className="lead text-start">{props.car.car_modification.name} {props.car.car_modification.name && props.car.comment ? ", " : ""} {props.car.comment}</p>
                     </div>
                     <div className="col text-end">
                         <button type="button" className="btn btn-link">Редактировать</button>

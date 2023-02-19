@@ -149,6 +149,7 @@ class ReglamentWork(db.Model):
     interval_months = db.Column(db.Integer, nullable=False, default=0)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), default=0, nullable=False)
     personal_car_id = db.Column(db.Integer, db.ForeignKey('car_personal.id'), default=0, nullable=False)
+    expiration_percent = db.Column(db.Integer, nullable=False, default=0)
 
     def __repr__(self):
         return 'ReglamentWork %r' % self.name
